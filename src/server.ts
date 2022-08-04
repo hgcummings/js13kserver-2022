@@ -1,10 +1,15 @@
-"use strict";
+import { Socket } from "socket.io";
+
+declare const storage: {
+	get(key:string, defaultValue:any, json?:boolean): Promise<any>
+	set(key:string, value:any, json?:boolean): Promise<boolean>
+}
 
 /**
  * User sessions
  * @param {Array} users
  */
-const users = [];
+const users = Array<User>();
 
 /**
  * Find opponent for a user
@@ -14,7 +19,7 @@ function findOpponent(user) {
 	for (let i = 0; i < users.length; i++) {
 		if (
 			user !== users[i] &&
-			users[i].opponent === null
+			users[i].opponent === undefined
 		) {
 			new Game(user, users[i]).start();
 		}
@@ -33,6 +38,8 @@ function removeUser(user) {
  * Game class
  */
 class Game {
+	user1?: User
+	user2?: User
 
 	/**
 	 * @param {User} user1
@@ -47,8 +54,8 @@ class Game {
 	 * Start new game
 	 */
 	start() {
-		this.user1.start(this, this.user2);
-		this.user2.start(this, this.user1);
+		this.user1?.start(this, this.user2);
+		this.user2?.start(this, this.user1);
 	}
 
 	/**
@@ -56,7 +63,7 @@ class Game {
 	 * @return {boolean}
 	 */
 	ended() {
-		return this.user1.guess !== GUESS_NO && this.user2.guess !== GUESS_NO;
+		return this.user1?.guess !== GUESS_NO && this.user2?.guess !== GUESS_NO;
 	}
 
 	/**
@@ -64,22 +71,22 @@ class Game {
 	 */
 	score() {
 		if (
-			this.user1.guess === GUESS_ROCK && this.user2.guess === GUESS_SCISSORS ||
-			this.user1.guess === GUESS_PAPER && this.user2.guess === GUESS_ROCK ||
-			this.user1.guess === GUESS_SCISSORS && this.user2.guess === GUESS_PAPER
+			this.user1?.guess === GUESS_ROCK && this.user2?.guess === GUESS_SCISSORS ||
+			this.user1?.guess === GUESS_PAPER && this.user2?.guess === GUESS_ROCK ||
+			this.user1?.guess === GUESS_SCISSORS && this.user2?.guess === GUESS_PAPER
 		) {
-			this.user1.win();
-			this.user2.lose();
+			this.user1?.win();
+			this.user2?.lose();
 		} else if (
-			this.user2.guess === GUESS_ROCK && this.user1.guess === GUESS_SCISSORS ||
-			this.user2.guess === GUESS_PAPER && this.user1.guess === GUESS_ROCK ||
-			this.user2.guess === GUESS_SCISSORS && this.user1.guess === GUESS_PAPER
+			this.user2?.guess === GUESS_ROCK && this.user1?.guess === GUESS_SCISSORS ||
+			this.user2?.guess === GUESS_PAPER && this.user1?.guess === GUESS_ROCK ||
+			this.user2?.guess === GUESS_SCISSORS && this.user1?.guess === GUESS_PAPER
 		) {
-			this.user2.win();
-			this.user1.lose();
+			this.user2?.win();
+			this.user1?.lose();
 		} else {
-			this.user1.draw();
-			this.user2.draw();
+			this.user1?.draw();
+			this.user2?.draw();
 		}
 	}
 
@@ -89,14 +96,16 @@ class Game {
  * User session class
  */
 class User {
+	game?: Game
+	opponent?: User
+	guess: number
+	socket: Socket
 
 	/**
 	 * @param {Socket} socket
 	 */
 	constructor(socket) {
 		this.socket = socket;
-		this.game = null;
-		this.opponent = null;
 		this.guess = GUESS_NO;
 	}
 
@@ -132,8 +141,8 @@ class User {
 	 * Terminate game
 	 */
 	end() {
-		this.game = null;
-		this.opponent = null;
+		this.game = undefined;
+		this.opponent = undefined;
 		this.guess = GUESS_NO;
 		this.socket.emit("end");
 	}
@@ -142,21 +151,21 @@ class User {
 	 * Trigger win event
 	 */
 	win() {
-		this.socket.emit("win", this.opponent.guess);
+		this.socket.emit("win", this.opponent?.guess);
 	}
 
 	/**
 	 * Trigger lose event
 	 */
 	lose() {
-		this.socket.emit("lose", this.opponent.guess);
+		this.socket.emit("lose", this.opponent?.guess);
 	}
 
 	/**
 	 * Trigger draw event
 	 */
 	draw() {
-		this.socket.emit("draw", this.opponent.guess);
+		this.socket.emit("draw", this.opponent?.guess);
 	}
 
 }
@@ -183,9 +192,9 @@ module.exports = {
 
 		socket.on("guess", (guess) => {
 			console.log("Guess: " + socket.id);
-			if (user.setGuess(guess) && user.game.ended()) {
-				user.game.score();
-				user.game.start();
+			if (user.setGuess(guess) && user.game?.ended()) {
+				user.game?.score();
+				user.game?.start();
 				storage.get('games', 0).then(games => {
 					storage.set('games', games + 1);
 				});

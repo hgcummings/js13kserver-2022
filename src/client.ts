@@ -1,4 +1,4 @@
-"use strict";
+declare const io:any 
 
 (function () {
 
